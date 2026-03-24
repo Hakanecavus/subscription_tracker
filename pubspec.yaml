@@ -1,0 +1,94 @@
+name: subscription_tracker
+description: "A subscription tracking application with local storage"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+
+  # Database
+  sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.0
+  sqflite_common_ffi_web: ^0.3.3
+  path: ^1.8.3
+
+  # Network
+  dio: ^5.4.0
+
+  # Notifications
+  flutter_local_notifications: ^16.3.0
+  workmanager: ^0.5.2
+  timezone: ^0.9.2
+
+  # DateTime & Localization
+  intl: ^0.20.2
+  flutter_localizations:
+    sdk: flutter
+
+  # Code Generation
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+
+  # Utilities
+  equatable: ^2.0.5
+  uuid: ^4.2.1
+
+  # Navigation
+  go_router: ^13.0.1
+
+  # Charts
+  fl_chart: ^0.66.0
+
+  # Security
+  local_auth: ^2.1.8
+  flutter_secure_storage: ^9.0.0
+
+  # Path
+  path_provider: ^2.1.1
+
+  # Icons
+  cupertino_icons: ^1.0.6
+
+  # Logging
+  logger: ^2.0.2
+
+  # Dotenv
+  flutter_dotenv: ^5.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+  # Code Generation Tools
+  build_runner: ^2.4.7
+  freezed: ^2.4.5
+  json_serializable: ^6.7.1
+  riverpod_generator: ^2.3.9
+  go_router_builder: ^2.3.4
+
+flutter:
+  uses-material-design: true
+
+  # Assets
+  assets:
+    - .env
+
+  # Localization
+  # generate: true
+
+  # Fonts (optional)
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: assets/fonts/custom_font_regular.ttf
+  #       - asset: assets/fonts/custom_font_bold.ttf
+  #         weight: 700

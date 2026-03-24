@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/hakanecavus/Codding/Subscription_Tracker -type f -name *.dart -o -name *.yaml -o -name *.yml -o -name *.json)"
+    ]
+  }
+}
