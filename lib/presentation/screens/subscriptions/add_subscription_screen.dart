@@ -43,7 +43,7 @@ class _AddSubscriptionScreenState extends ConsumerState<AddSubscriptionScreen> w
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Subscription' : l.tr('add_subscription')),
+        title: Text(widget.subscriptionId != null ? l.tr('edit_subscription') : l.tr('add_subscription')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -208,6 +208,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
   final _amountController = TextEditingController();
   late DateTime _startDate;
   String _billingCycle = 'Monthly';
+  String _selectedCurrency = 'USD';
   IconData _selectedIcon = Icons.subscriptions;
   Color _selectedColor = Colors.blue;
   String? _selectedCategoryId;
@@ -233,6 +234,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
   void _applyTemplate(Map<String, dynamic> template) {
     if (template['name'] != null) _nameController.text = template['name'] as String;
     if (template['amount'] != null) _amountController.text = template['amount'].toString();
+    if (template['currency'] != null) _selectedCurrency = template['currency'] as String;
     if (template['icon'] != null) _selectedIcon = template['icon'] as IconData;
     if (template['color'] != null) _selectedColor = template['color'] as Color;
     if (template['categoryId'] != null) _selectedCategoryId = template['categoryId'] as String;
@@ -258,13 +260,14 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
         return BillingCycle.monthly;
     }
   }
-
   Future<void> _pickDate() async {
+    final l = ref.read(appLocalizationsProvider);
     final picked = await showDatePicker(
       context: context,
       initialDate: _startDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
+      locale: Locale(l.localeCode),
     );
     if (picked != null) {
       setState(() {
@@ -341,8 +344,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
       final amount = double.parse(_amountController.text.trim());
       final cycle = _mapBillingCycle(_billingCycle);
       final nextBilling = cycle.calculateNextBillingDate(_startDate);
-      final currency = ref.read(selectedCurrencyProvider);
-      final currencyCode = currency.split(' ').first;
+      final currencyCode = _selectedCurrency;
 
       final repository = ref.read(subscriptionRepositoryProvider);
       
@@ -356,6 +358,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
           billingCycle: cycle,
           nextBillingDate: nextBilling,
           categoryId: _selectedCategoryId,
+          iconUrl: _selectedIcon.codePoint.toString(),
           paymentMethod: PaymentMethod.other,
         );
         final result = await repository.update(params);
@@ -374,6 +377,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
           startDate: _startDate,
           nextBillingDate: nextBilling,
           categoryId: _selectedCategoryId,
+          iconUrl: _selectedIcon.codePoint.toString(),
           paymentMethod: PaymentMethod.other,
         );
         final result = await repository.create(params);
@@ -430,7 +434,12 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
               setState(() {
                 _nameController.text = sub.name;
                 _amountController.text = sub.amount.toString();
-                _startDate = sub.startDate;
+                _selectedCurrency = sub.currency;
+                if (sub.iconUrl != null) {
+                  try {
+                    _selectedIcon = IconData(int.parse(sub.iconUrl!), fontFamily: 'MaterialIcons');
+                  } catch (_) {}
+                }
                 _billingCycle = sub.billingCycle.name.substring(0, 1).toUpperCase() + sub.billingCycle.name.substring(1).toLowerCase();
                 _selectedCategoryId = sub.categoryId;
                 _isDataLoaded = true;
@@ -480,15 +489,39 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
               validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
-            CustomTextField(
-              controller: _amountController,
-              labelText: l.tr('amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) return 'Required';
-                if (double.tryParse(value.trim()) == null) return 'Invalid number';
-                return null;
-              },
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: CustomTextField(
+                    controller: _amountController,
+                    labelText: l.tr('amount'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) return 'Required';
+                      if (double.tryParse(value.trim()) == null) return 'Invalid number';
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 1,
+                  child: DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: l.tr('currency'),
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    value: _selectedCurrency,
+                    items: ['USD', 'TRY', 'EUR', 'GBP']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => v != null ? setState(() => _selectedCurrency = v) : null,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
@@ -522,16 +555,19 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
                         value: null,
                         child: Text(l.tr('uncategorized')),
                       ),
-                      ...categories.map((c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Row(
-                              children: [
-                                Icon(Icons.circle, color: Color(c.colorValue), size: 12),
-                                const SizedBox(width: 8),
-                                Text(c.name),
-                              ],
-                            ),
-                          )),
+                      ...categories.map((c) {
+                        final translationKey = c.name.toLowerCase().replaceAll(' ', '_').replaceAll('&', '');
+                        return DropdownMenuItem(
+                          value: c.id,
+                          child: Row(
+                            children: [
+                              Icon(Icons.circle, color: Color(c.colorValue), size: 12),
+                              const SizedBox(width: 8),
+                              Text(l.tr(translationKey)),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                     onChanged: (v) => setState(() => _selectedCategoryId = v),
                   ),
@@ -564,7 +600,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
             SizedBox(
               width: double.infinity,
               child: AppButton(
-                text: widget.subscriptionId != null ? 'Save Changes' : l.tr('save_subscription'),
+                text: widget.subscriptionId != null ? l.tr('save_changes') : l.tr('save_subscription'),
                 isLoading: _isSaving,
                 onPressed: _isSaving ? null : _saveSubscription,
               ),

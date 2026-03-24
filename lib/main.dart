@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:subscription_tracker/core/localization/app_localizations.dart';
 import 'package:subscription_tracker/core/theme/app_theme.dart';
 import 'package:subscription_tracker/core/utils/app_router.dart';
 import 'package:subscription_tracker/presentation/providers/app_providers.dart';
@@ -46,9 +48,18 @@ class MyApp extends ConsumerWidget {
       // Router configuration
       routerConfig: router,
 
-      // Localization (can be added later)
-      // localizationsDelegates: [...],
-      // supportedLocales: [...],
+      // Localization
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('tr', ''),
+        Locale('es', ''),
+      ],
+      locale: Locale(ref.watch(appLocalizationsProvider).localeCode),
     );
   }
 

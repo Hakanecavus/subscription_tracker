@@ -11,7 +11,16 @@ import 'package:subscription_tracker/presentation/providers/core_providers.dart'
 final allSubscriptionsProvider = FutureProvider<List<Subscription>>((ref) async {
   final repository = ref.watch(subscriptionRepositoryProvider);
   final result = await repository.getActive();
-  return result.getOrThrow();
+  final List<Subscription> subs = result.getOrThrow();
+  
+  // Sort by Currency (A-Z) then by Amount (High-Low)
+  subs.sort((a, b) {
+    final curComp = a.currency.compareTo(b.currency);
+    if (curComp != 0) return curComp;
+    return b.amount.compareTo(a.amount);
+  });
+  
+  return subs;
 });
 
 /// Subscription by ID provider (Family)
@@ -42,10 +51,15 @@ final dueSubscriptionsProvider = FutureProvider.family<List<Subscription>, int>(
 );
 
 /// Total monthly cost provider
-final totalMonthlyCostProvider = FutureProvider<double>((ref) async {
-  final repository = ref.watch(subscriptionRepositoryProvider);
-  final result = await repository.getTotalMonthlyCost();
-  return result.getOrThrow();
+final totalMonthlyCostProvider = FutureProvider<Map<String, double>>((ref) async {
+  final allSubs = await ref.watch(allSubscriptionsProvider.future);
+  final Map<String, double> totals = {};
+  
+  for (final sub in allSubs) {
+    totals[sub.currency] = (totals[sub.currency] ?? 0.0) + sub.monthlyCost;
+  }
+  
+  return totals;
 });
 
 /// Total yearly cost provider
@@ -63,15 +77,25 @@ final filteredSubscriptionsProvider = FutureProvider<List<Subscription>>((ref) a
   final searchQuery = ref.watch(subscriptionSearchProvider);
   final allSubs = await ref.watch(allSubscriptionsProvider.future);
 
+  final List<Subscription> filtered;
   if (searchQuery.isEmpty) {
-    return allSubs;
+    filtered = List.from(allSubs);
+  } else {
+    final lowercaseQuery = searchQuery.toLowerCase();
+    filtered = allSubs.where((sub) => 
+      sub.name.toLowerCase().contains(lowercaseQuery) || 
+      (sub.description?.toLowerCase().contains(lowercaseQuery) ?? false)
+    ).toList();
   }
 
-  final lowercaseQuery = searchQuery.toLowerCase();
-  return allSubs.where((sub) => 
-    sub.name.toLowerCase().contains(lowercaseQuery) || 
-    (sub.description?.toLowerCase().contains(lowercaseQuery) ?? false)
-  ).toList();
+  // Sort by Currency (A-Z) then by Amount (High-Low)
+  filtered.sort((a, b) {
+    final curComp = a.currency.compareTo(b.currency);
+    if (curComp != 0) return curComp;
+    return b.amount.compareTo(a.amount);
+  });
+
+  return filtered;
 });
 
 // ============== CATEGORY PROVIDERS ==============
@@ -175,34 +199,56 @@ final selectedTemplateProvider = StateProvider<Map<String, dynamic>?>((ref) => n
 /// Selected analytics period
 final analyticsPeriodProvider = StateProvider<AnalyticsPeriod>((ref) => AnalyticsPeriod.monthly);
 
+/// Selected analytics currency
+final selectedAnalyticsCurrencyProvider = StateProvider<String?>((ref) => null);
+
 /// Category analysis provider
 final categoryAnalysisProvider = FutureProvider<Map<String, CategoryAnalysis>>((ref) async {
   final allSubsAsync = ref.watch(allSubscriptionsProvider);
+  final selectedCurrency = ref.watch(selectedAnalyticsCurrencyProvider);
+
   return allSubsAsync.when(
     data: (subs) {
+      if (subs.isEmpty) return {};
+      
+      // Determine the currency to show: selected or first available
+      final currencyToShow = selectedCurrency ?? (subs.isNotEmpty ? subs.first.currency : null);
+      
+      if (currencyToShow == null) return {};
+
+      final filteredSubs = subs.where((s) => s.currency == currencyToShow).toList();
+          
       final service = CategoryAnalysisService();
-      return service.analyzeByCategory(subs);
+      return service.analyzeByCategory(filteredSubs);
     },
     loading: () => {},
     error: (_, __) => {},
   );
 });
 
-/// Total spending provider based on period
-final totalSpendingProvider = Provider<double>((ref) {
+/// Total spending provider based on period, returns Map<Currency, Amount>
+final totalSpendingProvider = Provider<Map<String, double>>((ref) {
   final allSubsAsync = ref.watch(allSubscriptionsProvider);
   final period = ref.watch(analyticsPeriodProvider);
   
   return allSubsAsync.maybeWhen(
     data: (subs) {
-      final totalMonthly = subs.fold(0.0, (sum, sub) => sum + sub.monthlyCost);
-      return switch (period) {
-        AnalyticsPeriod.weekly => totalMonthly / 4.33,
-        AnalyticsPeriod.monthly => totalMonthly,
-        AnalyticsPeriod.yearly => totalMonthly * 12,
-      };
+      final Map<String, double> totalsByCurrency = {};
+      
+      for (final sub in subs) {
+        final monthly = sub.monthlyCost;
+        final periodCost = switch (period) {
+          AnalyticsPeriod.weekly => monthly / 4.33,
+          AnalyticsPeriod.monthly => monthly,
+          AnalyticsPeriod.yearly => monthly * 12,
+        };
+        
+        totalsByCurrency[sub.currency] = (totalsByCurrency[sub.currency] ?? 0.0) + periodCost;
+      }
+      
+      return totalsByCurrency;
     },
-    orElse: () => 0.0,
+    orElse: () => {},
   );
 });
 

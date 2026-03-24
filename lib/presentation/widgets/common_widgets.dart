@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -452,6 +453,10 @@ class SubscriptionListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = ref.watch(appLocalizationsProvider);
+    final categories = ref.watch(allCategoriesProvider).value ?? [];
+    final category = categories.firstWhereOrNull((c) => c.id == sub.categoryId);
+    final categoryColor = category != null ? Color(category.colorValue) : Theme.of(context).colorScheme.primaryContainer;
+    
     final currencySymbol = sub.currency == 'TRY' ? '₺' : (sub.currency == 'USD' ? '\$' : sub.currency + ' ');
     
     final daysUntil = sub.nextBillingDate.difference(DateTime.now()).inDays;
@@ -468,7 +473,7 @@ class SubscriptionListItem extends ConsumerWidget {
         _showDeleteConfirmation(context, ref, sub);
       },
       child: AppCard(
-        onTap: onTap ?? () => context.push('${AppRoutes.subscriptions}/detail/${sub.id}'),
+        onTap: onTap ?? () => context.go('${AppRoutes.subscriptions}/detail/${sub.id}'),
         padding: const EdgeInsets.all(12),
         margin: EdgeInsets.zero,
         child: Row(
@@ -477,12 +482,12 @@ class SubscriptionListItem extends ConsumerWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color: categoryColor.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 _getIconData(sub.iconUrl),
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                color: categoryColor,
               ),
             ),
             const SizedBox(width: 16),
@@ -533,8 +538,11 @@ class SubscriptionListItem extends ConsumerWidget {
   }
 
   IconData _getIconData(String? iconUrl) {
-    if (iconUrl == null) return Icons.subscriptions;
-    // Basic mapping
-    return Icons.subscriptions;
+    if (iconUrl == null || iconUrl.isEmpty) return Icons.subscriptions;
+    try {
+      return IconData(int.parse(iconUrl), fontFamily: 'MaterialIcons');
+    } catch (_) {
+      return Icons.subscriptions;
+    }
   }
 }

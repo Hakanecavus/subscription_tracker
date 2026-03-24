@@ -79,14 +79,14 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                 ),
                 Center(
                   child: Text(
-                    sub.billingCycle.name.toUpperCase(),
+                    l.tr(sub.billingCycle.name.toLowerCase()).toUpperCase(),
                     style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    '${sub.currency} ${sub.amount.toStringAsFixed(2)} / ${sub.billingCycle.name.toLowerCase()}',
+                    '${sub.currency} ${sub.amount.toStringAsFixed(2)} / ${l.tr(sub.billingCycle.name.toLowerCase()).toLowerCase()}',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -98,7 +98,7 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Next Payment', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(l.tr('next_payment'), style: const TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
                             Text(dateFormat.format(sub.nextBillingDate)),
                           ],
@@ -109,10 +109,10 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                         children: [
                           Text(
                             nextPaymentDays == 0 
-                              ? 'Today' 
+                              ? l.tr('today') 
                               : nextPaymentDays < 0 
-                                ? 'Overdue' 
-                                : 'in $nextPaymentDays days',
+                                ? l.tr('overdue') 
+                                : l.trArgs('in_days', [nextPaymentDays.toString()]),
                             style: TextStyle(
                               color: nextPaymentDays <= 3 ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary, 
                               fontWeight: FontWeight.bold
@@ -129,7 +129,7 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Payment History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(l.tr('payment_history'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     IconButton(icon: const Icon(Icons.chevron_right), onPressed: () {}),
                   ],
                 ),
@@ -137,19 +137,18 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                 AppCard(
                   padding: EdgeInsets.zero,
                   child: Column(
-                    children: [
-                      // For now, just show the last payment (mocking history)
-                      _HistoryRow(
-                        date: dateFormat.format(sub.startDate), 
+                    children: _calculatePaymentHistory(sub).map((date) {
+                      return _HistoryRow(
+                        date: dateFormat.format(date), 
                         amount: '${sub.currency} ${sub.amount.toStringAsFixed(2)}',
-                        isFirst: true,
-                      ),
-                    ],
+                        isFirst: date == sub.startDate,
+                      );
+                    }).toList(),
                   ),
                 ),
                 if (sub.notes != null && sub.notes!.isNotEmpty) ...[
                   const SizedBox(height: 32),
-                  const Text('Notes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(l.tr('notes'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   AppCard(
                     child: Text(sub.notes!),
@@ -194,8 +193,27 @@ class SubscriptionDetailScreen extends ConsumerWidget {
     );
   }
 
+  List<DateTime> _calculatePaymentHistory(Subscription sub) {
+    List<DateTime> history = [];
+    DateTime current = sub.startDate;
+    final now = DateTime.now();
+
+    while (current.isBefore(now) || current.isAtSameMomentAs(now)) {
+      history.add(current);
+      final next = sub.billingCycle.calculateNextBillingDate(current);
+      if (next.isAtSameMomentAs(current)) break; // Safety against infinite loop
+      current = next;
+    }
+    return history.reversed.toList();
+  }
+
   IconData _getIconData(String? iconUrl) {
-    return Icons.subscriptions;
+    if (iconUrl == null || iconUrl.isEmpty) return Icons.subscriptions;
+    try {
+      return IconData(int.parse(iconUrl), fontFamily: 'MaterialIcons');
+    } catch (_) {
+      return Icons.subscriptions;
+    }
   }
 }
 

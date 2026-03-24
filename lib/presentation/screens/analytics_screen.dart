@@ -14,9 +14,10 @@ class AnalyticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = ref.watch(appLocalizationsProvider);
-    final period = ref.watch(analyticsPeriodProvider);
-    final totalSpent = ref.watch(totalSpendingProvider);
+    final totalSpentMap = ref.watch(totalSpendingProvider);
     final categoryAnalysisAsync = ref.watch(categoryAnalysisProvider);
+    final selectedCurrency = ref.watch(selectedAnalyticsCurrencyProvider);
+    final period = ref.watch(analyticsPeriodProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -27,8 +28,24 @@ class AnalyticsScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16.0),
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Currency Filter
+                if (totalSpentMap.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButton<String>(
+                      value: selectedCurrency ?? totalSpentMap.keys.first,
+                      underline: const SizedBox(),
+                      items: totalSpentMap.keys.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      onChanged: (v) => ref.read(selectedAnalyticsCurrencyProvider.notifier).state = v,
+                    ),
+                  ),
+                // Period Filter
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
@@ -56,7 +73,9 @@ class AnalyticsScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             StatCard(
               title: l.tr('total_spent'),
-              value: '\$${totalSpent.toStringAsFixed(2)}',
+              value: totalSpentMap.isEmpty 
+                ? '0.00' 
+                : '${(totalSpentMap[selectedCurrency ?? totalSpentMap.keys.first] ?? 0.0).toStringAsFixed(2)} ${selectedCurrency ?? totalSpentMap.keys.first}',
               iconOrTrend: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -92,14 +111,18 @@ class AnalyticsScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
                     Consumer(builder: (context, ref, _) {
                       final cats = ref.watch(allCategoriesProvider).value ?? [];
+                      final l = ref.watch(appLocalizationsProvider);
                       return Column(
-                        children: analysis.values.map((a) => _CategoryRow(
-                          name: _getCategoryName(a.categoryId, cats),
-                          amount: '\$${a.totalSpend.toStringAsFixed(2)}',
-                          percent: total > 0 ? (a.totalSpend / total * 100).toStringAsFixed(0) : '0',
-                          icon: Icons.category,
-                          color: _getCategoryColor(a.categoryId, cats),
-                        )).toList(),
+                        children: analysis.values.map((a) {
+                          final subCurrency = a.subscriptions.firstOrNull?.currency ?? '';
+                          return _CategoryRow(
+                            name: _getCategoryName(a.categoryId, cats, l),
+                            amount: '${a.totalSpend.toStringAsFixed(2)} $subCurrency',
+                            percent: total > 0 ? (a.totalSpend / total * 100).toStringAsFixed(0) : '0',
+                            icon: _getCategoryIcon(a.categoryId, cats),
+                            color: _getCategoryColor(a.categoryId, cats),
+                          );
+                        }).toList(),
                       );
                     }),
                   ],
@@ -134,14 +157,34 @@ class AnalyticsScreen extends ConsumerWidget {
     }
   }
 
-  String _getCategoryName(String id, List<Category> categories) {
+  IconData _getCategoryIcon(String id, List<Category> categories) {
     try {
       final category = categories.firstWhereOrNull((c) => c.id == id);
-      if (category != null) return category.name;
+      if (category?.iconName == 'movie') return Icons.movie_outlined;
+      if (category?.iconName == 'work') return Icons.work_outline;
+      if (category?.iconName == 'bolt') return Icons.bolt;
+      if (category?.iconName == 'favorite') return Icons.favorite_border;
+      if (category?.iconName == 'account_balance') return Icons.account_balance;
+      if (category?.iconName == 'shopping_cart') return Icons.shopping_cart_outlined;
+      if (category?.iconName == 'school') return Icons.school_outlined;
       
-      return id == 'uncategorized' ? 'Uncategorized' : id;
+      return Icons.category_outlined;
     } catch (_) {
-      return 'Uncategorized';
+      return Icons.category_outlined;
+    }
+  }
+
+  String _getCategoryName(String id, List<Category> categories, AppLocalizations l) {
+    try {
+      final category = categories.firstWhereOrNull((c) => c.id == id);
+      if (category != null) {
+        final translationKey = category.name.toLowerCase().replaceAll(' ', '_').replaceAll('&', '');
+        return l.tr(translationKey);
+      }
+      
+      return id == 'uncategorized' ? l.tr('uncategorized') : id;
+    } catch (_) {
+      return l.tr('uncategorized');
     }
   }
 }
@@ -236,11 +279,11 @@ class _CategoryRow extends StatelessWidget {
   }
 }
 
-class _BarChartSection extends StatelessWidget {
-  const _BarChartSection();
+class _BarChartSection extends ConsumerWidget {
+  const _BarChartSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Current trend is still mock since historical payments aren't fully implemented in DB yet
     return BarChart(
       BarChartData(
@@ -253,7 +296,10 @@ class _BarChartSection extends StatelessWidget {
             sideTitles: SideTitles(
               showTitles: true,
               getTitlesWidget: (val, meta) {
-                final months = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
+                final l = ref.watch(appLocalizationsProvider);
+                final months = l.localeCode == 'tr' 
+                    ? ['Ağu', 'Eyl', 'Eki', 'Kas', 'Ara', 'Oca']
+                    : ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
                 if (val.toInt() >= months.length) return const SizedBox();
                 return Padding(
                   padding: const EdgeInsets.only(top: 8.0),

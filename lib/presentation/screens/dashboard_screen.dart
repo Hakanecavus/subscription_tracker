@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:subscription_tracker/core/constants/routes.dart';
 import 'package:subscription_tracker/core/localization/app_localizations.dart';
 import 'package:subscription_tracker/domain/entities/subscription.dart';
@@ -52,7 +51,7 @@ class DashboardScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          context.push(AppRoutes.addSubscription);
+          context.go(AppRoutes.addSubscription);
         },
         child: const Icon(Icons.add),
       ),
@@ -69,9 +68,11 @@ class _MonthlyCostSection extends ConsumerWidget {
     final l = ref.watch(appLocalizationsProvider);
 
     return monthlyCostAsync.when(
-      data: (cost) => StatCard(
+      data: (totals) => StatCard(
         title: l.tr('monthly_total'),
-        value: NumberFormat.currency(symbol: '\$').format(cost),
+        value: totals.isEmpty 
+          ? '0.00' 
+          : totals.entries.map((e) => '${e.value.toStringAsFixed(2)} ${e.key}').join(' + '),
         iconOrTrend: const Icon(Icons.account_balance_wallet, color: Colors.grey),
       ),
       loading: () => const SkeletonLoader(height: 100),
@@ -146,7 +147,7 @@ class _AllSubscriptionsSection extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () {
-                context.push(AppRoutes.addSubscription);
+                context.go(AppRoutes.addSubscription);
               },
             ),
           ],
@@ -155,7 +156,7 @@ class _AllSubscriptionsSection extends ConsumerWidget {
         allSubsAsync.when(
           data: (subs) {
             if (subs.isEmpty) {
-              return const EmptyStateWidget(message: 'No subscriptions yet', icon: Icons.subscriptions_outlined);
+              return EmptyStateWidget(message: l.tr('no_subscriptions'), icon: Icons.subscriptions_outlined);
             }
             return Column(
               children: subs.map((sub) => Padding(

@@ -38,7 +38,7 @@ class SubscriptionsScreen extends ConsumerWidget {
                   if (subs.isEmpty) {
                     return Center(
                       child: EmptyStateWidget(
-                        message: searchQuery.isEmpty ? 'No subscriptions yet' : 'No matches found',
+                        message: searchQuery.isEmpty ? l.tr('no_subscriptions') : l.tr('no_matches'),
                         icon: Icons.subscriptions_outlined,
                       ),
                     );
@@ -63,7 +63,7 @@ class SubscriptionsScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(AppRoutes.addSubscription),
+        onPressed: () => context.go(AppRoutes.addSubscription),
         child: const Icon(Icons.add),
       ),
     );

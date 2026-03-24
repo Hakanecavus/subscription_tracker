@@ -51,7 +51,13 @@ class AppRouter {
               final l = ref.watch(appLocalizationsProvider);
               return NavigationBar(
                 selectedIndex: navigationShell.currentIndex,
-                onDestinationSelected: navigationShell.goBranch,
+                onDestinationSelected: (index) {
+                  navigationShell.goBranch(
+                    index,
+                    // Navigate to the initial location of the branch
+                    initialLocation: true,
+                  );
+                },
                 destinations: [
                   NavigationDestination(
                     icon: const Icon(Icons.dashboard_outlined),
