@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:subscription_tracker/core/localization/app_localizations.dart';
 import 'package:subscription_tracker/presentation/providers/app_providers.dart';
+import 'package:subscription_tracker/presentation/providers/core_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -48,19 +49,11 @@ class SettingsScreen extends ConsumerWidget {
             _buildBiometricSwitch(context, ref, l),
             _SettingsTile(
               title: l.tr('export_data'),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l.tr('export_coming_soon'))),
-                );
-              },
+              onTap: () => _exportData(context, ref, l),
             ),
             _SettingsTile(
               title: l.tr('import_data'),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l.tr('import_coming_soon'))),
-                );
-              },
+              onTap: () => _showImportDialog(context, ref, l),
             ),
             const SizedBox(height: 24),
             _SectionHeader(title: l.tr('about')),
@@ -322,6 +315,84 @@ class SettingsScreen extends ConsumerWidget {
           SnackBar(content: Text(value ? l.tr('biometric_enabled') : l.tr('biometric_disabled'))),
         );
       },
+    );
+  }
+
+  // ============== EXPORT ==============
+  Future<void> _exportData(BuildContext context, WidgetRef ref, AppLocalizations l) async {
+    try {
+      final backupService = ref.read(backupServiceProvider);
+      await backupService.exportAndShare();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l.tr('export_failed')}: $e')),
+        );
+      }
+    }
+  }
+
+  // ============== IMPORT ==============
+  Future<void> _showImportDialog(BuildContext context, WidgetRef ref, AppLocalizations l) async {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.tr('import_data')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l.tr('paste_backup_data')),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: l.tr('backup_json_hint'),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () async {
+              final jsonData = controller.text.trim();
+              if (jsonData.isEmpty) return;
+
+              Navigator.of(ctx).pop();
+
+              try {
+                final backupService = ref.read(backupServiceProvider);
+                final success = await backupService.importFromJson(jsonData);
+
+                if (success && context.mounted) {
+                  // Refresh providers
+                  ref.invalidate(allSubscriptionsProvider);
+                  ref.invalidate(totalMonthlyCostProvider);
+                  ref.invalidate(allCategoriesProvider);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l.tr('import_success'))),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${l.tr('import_failed')}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(l.tr('import')),
+          ),
+        ],
+      ),
     );
   }
 }

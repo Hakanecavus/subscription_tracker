@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:subscription_tracker/core/constants/routes.dart';
 import 'package:subscription_tracker/core/localization/app_localizations.dart';
-import 'package:subscription_tracker/domain/entities/subscription.dart';
 import 'package:subscription_tracker/presentation/providers/app_providers.dart';
-import 'package:subscription_tracker/presentation/providers/core_providers.dart';
 import 'package:subscription_tracker/presentation/widgets/common_widgets.dart';
 
 class DashboardScreen extends ConsumerWidget {

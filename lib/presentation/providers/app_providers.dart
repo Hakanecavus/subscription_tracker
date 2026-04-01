@@ -4,6 +4,7 @@ import 'package:subscription_tracker/domain/repositories/category_repository.dar
 import 'package:subscription_tracker/domain/repositories/subscription_repository.dart';
 import 'package:subscription_tracker/domain/usecases/analysis_services.dart';
 import 'package:subscription_tracker/presentation/providers/core_providers.dart';
+import 'package:subscription_tracker/core/localization/locale_utils.dart';
 
 // ============== SUBSCRIPTION PROVIDERS ==============
 
@@ -177,10 +178,10 @@ enum ThemeModeState {
 // ============== SETTINGS PROVIDERS ==============
 
 /// Selected currency provider
-final selectedCurrencyProvider = StateProvider<String>((ref) => 'USD \$');
+final selectedCurrencyProvider = StateProvider<String>((ref) => detectDefaultCurrency());
 
 /// Selected language provider
-final selectedLanguageProvider = StateProvider<String>((ref) => 'English');
+final selectedLanguageProvider = StateProvider<String>((ref) => detectDeviceLanguage());
 
 /// Notifications enabled provider
 final notificationsEnabledProvider = StateProvider<bool>((ref) => true);

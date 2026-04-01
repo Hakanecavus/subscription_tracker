@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:subscription_tracker/core/localization/app_localizations.dart';
 import 'package:subscription_tracker/core/theme/app_theme.dart';
 import 'package:subscription_tracker/core/utils/app_router.dart';
 import 'package:subscription_tracker/presentation/providers/app_providers.dart';
 import 'package:subscription_tracker/presentation/providers/core_providers.dart';
 
+// Global notification plugin instance
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize date formatting for all supported locales
   await initializeDateFormatting('en', null);
   await initializeDateFormatting('tr', null);
@@ -18,12 +24,37 @@ void main() async {
   await initializeDateFormatting('fr', null);
   await initializeDateFormatting('de', null);
 
+  // Initialize timezone
+  tz_data.initializeTimeZones();
+
+  // Initialize notifications
+  await _initializeNotifications();
+
   runApp(
     ProviderScope(
       parent: providerContainer,
       child: const MyApp(),
     ),
   );
+}
+
+Future<void> _initializeNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const DarwinInitializationSettings initializationSettingsIOS =
+      DarwinInitializationSettings(
+    requestAlertPermission: false,
+    requestBadgePermission: false,
+    requestSoundPermission: false,
+  );
+
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsIOS,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 }
 
 /// Main application widget
@@ -58,6 +89,8 @@ class MyApp extends ConsumerWidget {
         Locale('en', ''),
         Locale('tr', ''),
         Locale('es', ''),
+        Locale('fr', ''),
+        Locale('de', ''),
       ],
       locale: Locale(ref.watch(appLocalizationsProvider).localeCode),
     );

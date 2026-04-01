@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:subscription_tracker/core/services/backup_service.dart';
 import 'package:subscription_tracker/core/utils/app_router.dart';
 import 'package:subscription_tracker/core/utils/provider_utils.dart';
 import 'package:subscription_tracker/data/datasources/local/database_helper.dart';
@@ -46,6 +47,13 @@ final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
 final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
   final localDataSource = ref.watch(categoryLocalDataSourceProvider);
   return CategoryRepositoryImpl(localDataSource: localDataSource);
+});
+
+// ============== SERVICE PROVIDERS ==============
+/// Backup service provider
+final backupServiceProvider = Provider<BackupService>((ref) {
+  final dbHelper = ref.watch(databaseHelperProvider);
+  return BackupService(dbHelper);
 });
 
 // ============== NAVIGATION PROVIDERS ==============
