@@ -82,7 +82,7 @@ class AppTheme {
       bottomNavigationBarTheme: _darkBottomNavTheme,
       dividerTheme: _dividerTheme,
       tooltipTheme: _tooltipTheme,
-      snackBarTheme: _snackBarTheme,
+      snackBarTheme: _darkSnackBarTheme,
       dialogTheme: _dialogTheme,
       bottomSheetTheme: _bottomSheetTheme,
       typography: Typography.material2021(),
@@ -118,7 +118,7 @@ class AppTheme {
       bottomNavigationBarTheme: _lightBottomNavTheme,
       dividerTheme: _dividerTheme,
       tooltipTheme: _tooltipTheme,
-      snackBarTheme: _snackBarTheme,
+      snackBarTheme: _lightSnackBarTheme,
       dialogTheme: _dialogTheme,
       bottomSheetTheme: _bottomSheetTheme,
       typography: Typography.material2021(),
@@ -191,6 +191,7 @@ class AppTheme {
       borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
       borderSide: const BorderSide(color: errorColor, width: 1),
     ),
+    errorStyle: const TextStyle(color: errorColor, fontWeight: FontWeight.w500),
     contentPadding: const EdgeInsets.symmetric(
       horizontal: AppConstants.defaultPadding,
       vertical: AppConstants.defaultPadding,
@@ -216,6 +217,7 @@ class AppTheme {
       borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
       borderSide: const BorderSide(color: errorColor, width: 1),
     ),
+    errorStyle: const TextStyle(color: errorColor, fontWeight: FontWeight.w500),
     contentPadding: const EdgeInsets.symmetric(
       horizontal: AppConstants.defaultPadding,
       vertical: AppConstants.defaultPadding,
@@ -332,13 +334,25 @@ class AppTheme {
     textStyle: const TextStyle(color: Colors.white),
   );
 
-  // SnackBar Theme
-  static SnackBarThemeData get _snackBarTheme => SnackBarThemeData(
+  // SnackBar Themes
+  static SnackBarThemeData get _darkSnackBarTheme => SnackBarThemeData(
     behavior: SnackBarBehavior.floating,
+    backgroundColor: const Color(0xFF3F3D56), // Muted dark purple/grey
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
     ),
-    contentTextStyle: const TextStyle(color: Colors.white),
+    contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
+    actionTextColor: primaryColor,
+  );
+
+  static SnackBarThemeData get _lightSnackBarTheme => SnackBarThemeData(
+    behavior: SnackBarBehavior.floating,
+    backgroundColor: const Color(0xFF3F3D56), // Consistent dark snackbar for both
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
+    ),
+    contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
+    actionTextColor: primaryColor,
   );
 
   // Dialog Theme

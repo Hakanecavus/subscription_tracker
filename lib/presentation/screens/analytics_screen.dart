@@ -6,6 +6,7 @@ import 'package:subscription_tracker/domain/entities/subscription.dart';
 import 'package:subscription_tracker/domain/usecases/analysis_services.dart';
 import 'package:collection/collection.dart';
 import 'package:subscription_tracker/presentation/providers/app_providers.dart';
+import 'package:intl/intl.dart';
 import 'package:subscription_tracker/presentation/widgets/common_widgets.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
@@ -91,9 +92,9 @@ class AnalyticsScreen extends ConsumerWidget {
             categoryAnalysisAsync.when(
               data: (analysis) {
                 if (analysis.isEmpty) {
-                  return const Center(child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Text('Add subscriptions to see analysis'),
+                  return Center(child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Text(l.tr('add_subscriptions_to_see_analysis')),
                   ));
                 }
                 
@@ -178,7 +179,7 @@ class AnalyticsScreen extends ConsumerWidget {
     try {
       final category = categories.firstWhereOrNull((c) => c.id == id);
       if (category != null) {
-        final translationKey = category.name.toLowerCase().replaceAll(' ', '_').replaceAll('&', '');
+        final translationKey = category.name.toLowerCase().trim().replaceAll(RegExp(r'[^a-z0-9]+'), '_').replaceAll(RegExp(r'_+$'), '');
         return l.tr(translationKey);
       }
       
@@ -284,45 +285,103 @@ class _BarChartSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Current trend is still mock since historical payments aren't fully implemented in DB yet
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: 300,
-        barTouchData: BarTouchData(enabled: false),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (val, meta) {
-                final l = ref.watch(appLocalizationsProvider);
-                final months = l.localeCode == 'tr' 
-                    ? ['Ağu', 'Eyl', 'Eki', 'Kas', 'Ara', 'Oca']
-                    : ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
-                if (val.toInt() >= months.length) return const SizedBox();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(months[val.toInt()], style: const TextStyle(fontSize: 12)),
-                );
-              },
+    final subscriptionsAsync = ref.watch(allSubscriptionsProvider);
+    final selectedCurrency = ref.watch(selectedAnalyticsCurrencyProvider);
+
+    return subscriptionsAsync.when(
+      data: (subs) {
+        if (subs.isEmpty) {
+          final l = ref.watch(appLocalizationsProvider);
+          return EmptyStateWidget(
+            message: l.tr('no_subscriptions'),
+            icon: Icons.subscriptions_outlined,
+          );
+        }
+
+        // Determine currency to analyze
+        final currencyToShow = selectedCurrency ?? (subs.isNotEmpty ? subs.first.currency : null);
+        if (currencyToShow == null) return const SizedBox();
+
+        final filteredSubs = subs.where((s) => s.currency == currencyToShow).toList();
+        
+        // Calculate last 6 months
+        final now = DateTime.now();
+        final last6MonthsList = List.generate(6, (i) {
+          final date = DateTime(now.year, now.month - (5 - i), 1);
+          return date;
+        });
+
+        final monthlyTotals = last6MonthsList.map((monthDate) {
+          double total = 0;
+          for (final sub in filteredSubs) {
+            // Check if subscription was active in this month
+            // A simple logic: if month >= startDate month/year
+            final subStart = DateTime(sub.startDate.year, sub.startDate.month, 1);
+            if (!monthDate.isBefore(subStart)) {
+              total += sub.monthlyCost;
+            }
+          }
+          return total;
+        }).toList();
+
+        final maxTotal = monthlyTotals.fold(0.0, (m, v) => v > m ? v : m);
+        final maxY = (maxTotal == 0) ? 100.0 : maxTotal * 1.2;
+
+        return BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: maxY,
+            barTouchData: BarTouchData(
+              touchTooltipData: BarTouchTooltipData(
+                tooltipBgColor: Theme.of(context).colorScheme.primaryContainer,
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  return BarTooltipItem(
+                    rod.toY.toStringAsFixed(2),
+                    TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                },
+              ),
             ),
+            titlesData: FlTitlesData(
+              show: true,
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (val, meta) {
+                    final l = ref.watch(appLocalizationsProvider);
+                    if (val.toInt() < 0 || val.toInt() >= last6MonthsList.length) return const SizedBox();
+                    
+                    final date = last6MonthsList[val.toInt()];
+                    final monthFormat = DateFormat.MMM(l.localeCode);
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(monthFormat.format(date), style: const TextStyle(fontSize: 10)),
+                    );
+                  },
+                ),
+              ),
+              leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            gridData: const FlGridData(show: false),
+            borderData: FlBorderData(show: false),
+            barGroups: List.generate(monthlyTotals.length, (i) {
+              final isLast = i == monthlyTotals.length - 1;
+              return _buildBarGroup(
+                i, 
+                monthlyTotals[i], 
+                isLast ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primaryContainer
+              );
+            }),
           ),
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        barGroups: [
-          _buildBarGroup(0, 150, Theme.of(context).colorScheme.primaryContainer),
-          _buildBarGroup(1, 180, Theme.of(context).colorScheme.primaryContainer),
-          _buildBarGroup(2, 210, Theme.of(context).colorScheme.primaryContainer),
-          _buildBarGroup(3, 215, Theme.of(context).colorScheme.primaryContainer),
-          _buildBarGroup(4, 230, Theme.of(context).colorScheme.primaryContainer),
-          _buildBarGroup(5, 247.5, Theme.of(context).colorScheme.primary),
-        ],
-      ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error: $e')),
     );
   }
 

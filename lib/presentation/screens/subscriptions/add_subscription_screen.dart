@@ -556,7 +556,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
                         child: Text(l.tr('uncategorized')),
                       ),
                       ...categories.map((c) {
-                        final translationKey = c.name.toLowerCase().replaceAll(' ', '_').replaceAll('&', '');
+                        final translationKey = c.name.toLowerCase().trim().replaceAll(RegExp(r'[^a-z0-9]+'), '_').replaceAll(RegExp(r'_+$'), '');
                         return DropdownMenuItem(
                           value: c.id,
                           child: Row(
